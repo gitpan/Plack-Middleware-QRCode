@@ -1,7 +1,7 @@
 package Plack::Middleware::QRCode;
 use strict;
 use warnings;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 use parent qw(Plack::Middleware);
 use Plack::Util::Accessor qw(render config image_type);
 use Imager;
@@ -34,13 +34,19 @@ sub call {
     my $params = $req->parameters->mixed;
     my %config = %{ $self->config };
 
-    $config{size} = $params->{s};
+    $config{size} = $params->{s} if exists $params->{s};
     $config{margin} = $params->{m};
 
     my $pathinfo = substr $env->{'PATH_INFO'},1;
     say STDERR "Generating QRCode for '" , $pathinfo , "'";
 
-    return [ 500 , [ 'Content-type' => 'text/plain' ] , [ 'Please enter text for QRCode' ] ] unless $pathinfo;
+    my @error = ( 500 , [ 'Content-type' => 'text/plain' ] );
+
+    return [ @error , [ 'Please enter text for QRCode' ] ] unless $pathinfo;
+
+    unless ( $config{size} > 0 ) {
+        return [ @error, [ 'Please enter an integer for size param' ] ];
+    }
 
     my $qrcode = Imager::QRCode->new( %config );
     my $img = $qrcode->plot( $pathinfo );
@@ -56,7 +62,7 @@ __END__
 
 =head1 NAME
 
-Plack::Middleware::QRCode - Mount QRCode image service on your Plack application.
+Plack::Middleware::QRCode - Mount QRCode Image service on your Plack application.
 
 =head1 SYNOPSIS
 
@@ -76,7 +82,6 @@ provide default options:
     builder {
         mount '/qrcode' => builder {
         enable 'QRCode' , 
-            type   => 'png',  # image types: gif, png, jpg
             render => {
                 size          => 2,
                 margin        => 2,
@@ -89,19 +94,13 @@ provide default options:
 
 =head1 DESCRIPTION
 
-Plack::Middleware::QRCode provides QRCode image service for your plack application.
-
-When you mount QRCode service on /qrcode, make a request from /qrcode/your_qrcode_text?s=10
-
-C<s> means your QRCode image size.
+Plack::Middleware::QRCode is
 
 =head1 AUTHOR
 
 Yo-An Lin E<lt>cornelius.howl {at} gmail.comE<gt>
 
 =head1 SEE ALSO
-
-L<Imager::QRCode>
 
 =head1 LICENSE
 
